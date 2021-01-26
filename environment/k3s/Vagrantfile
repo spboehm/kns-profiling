@@ -1,0 +1,47 @@
+Vagrant.configure(2) do |config|
+ 
+  config.vm.define "uniba-dsg-h13" do |m|
+          m.vm.box = "peru/ubuntu-20.04-server-amd64"
+          m.vm.hostname = "uniba-dsg-h13"
+          m.vm.network "private_network", ip: "192.168.4.13"
+        m.vm.provider "virtualbox" do |v|
+            v.cpus = 2
+	    v.memory = 4096
+      end
+  end
+ 
+  config.vm.define "uniba-dsg-h35" do |m|
+          m.vm.box = "peru/ubuntu-20.04-server-amd64"
+          m.vm.hostname = "uniba-dsg-h35"
+          m.vm.network "private_network", ip: "192.168.4.35"
+        m.vm.provider "virtualbox" do |v|
+            v.cpus = 2
+	    v.memory = 4096
+    end
+  
+  end
+  
+    config.vm.define "uniba-dsg-h45" do |m|
+          m.vm.box = "peru/ubuntu-20.04-server-amd64"
+          m.vm.hostname = "uniba-dsg-h45"
+          m.vm.network "private_network", ip: "192.168.4.45"
+        m.vm.provider "virtualbox" do |v|
+            v.cpus = 2
+	    v.memory = 4096
+    end
+  
+  end
+  
+config.vm.define "uniba-dsg-h55" do |m|
+      m.vm.box = "peru/ubuntu-20.04-server-amd64"
+      m.vm.hostname = "uniba-dsg-h55"
+      m.vm.network "private_network", ip: "192.168.4.55"
+    m.vm.provider "virtualbox" do |v|
+        v.cpus = 2
+  v.memory = 4096
+end
+  
+end
+  
+
+end

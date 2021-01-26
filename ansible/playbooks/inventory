@@ -1,0 +1,44 @@
+[K8s]
+K8sMaster ansible_host=192.168.4.11 hostname=uniba-dsg-h11 role=master
+K8sWorker1 ansible_host=192.168.4.33 hostname=uniba-dsg-h33 role=worker
+K8sWorker2 ansible_host=192.168.4.43 hostname=uniba-dsg-h43 role=worker
+K8sWorker3 ansible_host=192.168.4.53 hostname=uniba-dsg-h53 role=worker
+
+[K8sMasterNodes]
+K8sMaster
+
+[K8sWorkerNodes]
+K8sWorker1
+K8sWorker2
+K8sWorker3
+
+[K3s]
+K3sMaster ansible_host=192.168.4.13 hostname=uniba-dsg-h13 role=master
+K3sWorker1 ansible_host=192.168.4.35 hostname=uniba-dsg-h35 role=worker
+K3sWorker2 ansible_host=192.168.4.45 hostname=uniba-dsg-h45 role=worker
+K3sWorker3 ansible_host=192.168.4.55 hostname=uniba-dsg-h55 role=worker
+
+[K3sMasterNodes]
+K3sMaster
+
+[K3sWorkerNodes]
+K3sWorker1
+K3sWorker2
+K3sWorker3
+
+[mK8s]
+mK8sMaster ansible_host=192.168.4.12 hostname=uniba-dsg-h12 role=master
+mK8sWorker1 ansible_host=192.168.4.34 hostname=uniba-dsg-h34 role=worker
+mK8sWorker2 ansible_host=192.168.4.44 hostname=uniba-dsg-h44 role=worker
+mK8sWorker3 ansible_host=192.168.4.54 hostname=uniba-dsg-h54 role=worker
+
+[mK8sMasterNodes]
+mK8sMaster
+
+[mK8sWorkerNodes]
+mK8sWorker1
+mK8sWorker2
+mK8sWorker3
+
+[db]
+mongodb ansible_host=192.168.4.62 hostname=uniba-dsg-h62

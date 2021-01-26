@@ -1,0 +1,58 @@
+---
+- name: Deploy MicroK8s
+  hosts: mK8s
+  become: True
+  gather_facts: yes   
+  tasks:
+  - name: Packages snapd and containerd are installed
+    apt:
+      pkg: 
+        - snapd
+        - containerd
+      update_cache: yes
+  - name: MicroK8s is installed on all nodes
+    snap:
+      name: microk8s
+      classic: yes
+      state: present
+  - name: MicroK8s is started
+    systemd:
+      name: snap.microk8s.daemon-containerd.service
+      state: started
+      enabled: True
+  - name: Enabled ip forwarding
+    lineinfile:
+      dest: /etc/ufw/sysctl.conf
+      regexp: '^#{{ item }}$'
+      line: "{{ item }}"
+    with_items:
+      - net/ipv4/ip_forward=1
+      - net/ipv6/conf/default/forwarding=1
+      - net/ipv6/conf/all/forwarding=1
+  - name: Enabled forwarding in ufw
+    lineinfile:
+      dest: /etc/default/ufw
+      regexp: '^DEFAULT_FORWARD_POLICY=.*$'
+      line: DEFAULT_FORWARD_POLICY="ACCEPT"
+  - name: Ensure inbound rules for microK8s are enabled
+    ufw:
+      rule: allow
+      proto: tcp
+      src: 141.13.4.0/23
+      to_port: "{{ item }}"
+    with_items:
+      - "16443"
+      - "10250"
+      - "10255"
+      - "25000"
+      - "12379"
+      - "10257"
+      - "10259"
+      - "19001"
+  - name: Restart ufw
+    systemd:
+      state: restarted
+      daemon_reload: yes
+      name: ufw
+  - name: Microk8s is stopped
+    command: microk8s stop

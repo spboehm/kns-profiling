@@ -1,0 +1,92 @@
+---
+- name: Deploy a k8s master node
+  hosts: K8sMasterNodes
+  become: True
+  tasks:
+    - name: Upgrade all apt packages
+      apt: 
+        upgrade: dist 
+        force_apt_get: yes
+    - name: Install packages apt-transport-https and curl
+      apt:
+        pkg: 
+          - apt-transport-https
+          - curl
+          - gpg
+          - containerd
+        state: present
+    - name: Download and install apt-key from packages.cloud.google.com
+      apt_key:
+        url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+        state: present
+    - name: Add repository into sources list
+      apt_repository:
+        repo: deb https://apt.kubernetes.io/ kubernetes-xenial main
+        state: present
+    - name: Install packages kubelet, kubeadm, and kubectl
+      apt:
+        pkg: 
+          - kubelet
+          - kubeadm
+          - kubectl
+        state: present
+    - name: Disable swap
+      shell: |
+        swapoff -a
+    - name: Disable swap in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+    - name: Enable ip forwarding
+      lineinfile:
+        dest: /etc/ufw/sysctl.conf
+        regexp: '^#{{ item }}$'
+        line: "{{ item }}"
+      with_items:
+        - net/ipv4/ip_forward=1
+        - net/ipv6/conf/default/forwarding=1
+        - net/ipv6/conf/all/forwarding=1
+    - name: Enable forwarding in ufw
+      lineinfile:
+        dest: /etc/default/ufw
+        regexp: '^DEFAULT_FORWARD_POLICY=.*$'
+        line: DEFAULT_FORWARD_POLICY="ACCEPT"
+    - name: Enable udp inbound rules from overlay network
+      ufw: 
+        rule: allow
+        proto: udp
+        src: 10.244.0.0/16
+        to_port: "53"
+    - name: Enable inbound rules for k8s cluster
+      ufw:
+        rule: allow
+        proto: tcp
+        src: 192.168.4.0/24
+        to_port: "{{ item }}"
+      with_items:
+        - "6443"
+        - "2379"
+        - "2380"
+        - "10250"
+        - "10254"
+        - "10252"
+    - name: Enable inbound rules for flannel networking
+      ufw:
+        rule: allow
+        proto: udp
+        src: 192.168.4.0/24
+        to_port: "8472"
+    - name: Enable inbound rules for pod network
+      ufw:
+        rule: allow
+        proto: tcp
+        src: "{{ item }}"
+        to_port: "6443"
+      with_items:
+        - "10.244.0.0/16"
+    - name: Restart ufw
+      systemd:
+        state: restarted
+        daemon_reload: yes
+        name: ufw

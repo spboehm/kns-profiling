@@ -1,0 +1,56 @@
+---
+- name: Deploy mongodb
+  hosts: db
+  become: True
+  gather_facts: yes   
+  tasks:
+  - name: Ensure docker.io is installed
+    apt:
+      name: docker.io
+      update_cache: yes
+  - name: Ensure python3-pip installed
+    apt:
+      pkg:
+        - python3-pip
+      update_cache: yes
+  - name: Ensure docker sdk is installed
+    pip:
+      name: 
+        - docker
+        - docker-compose
+      executable: pip3
+  - name: Docker is started
+    systemd:
+      name: docker
+      state: started
+      enabled: true
+  - name: Ensure network for mongodb ist created
+    docker_network:
+      name: mongodb_internal
+  - name: Ensure mongodb container is absent
+    docker_container: 
+      name: "{{ mongodb_container_name }}"
+      state: absent
+  - name: Ensure mongodb container is configured
+    docker_container: 
+      name: "{{ mongodb_container_name }}"
+      image: mongo:4.4
+      state: started
+      command: mongo --host mongodb://"{{ mongodb_user }}":"{{ mongodb_password }}"@127.0.0.1:27017/netdata --authenticationDatabase admin --eval "db.createCollection('netdata_metrics')"
+      ports:
+        - 27017:27017
+      env: 
+        MONGO_INITDB_ROOT_USERNAME="{{ mongodb_user }}"
+        MONGO_INITDB_ROOT_PASSWORD="{{ mongodb_password }}"
+  - name: Ensure mongodb is up 
+    docker_container: 
+      name: "{{ mongodb_container_name }}"
+      image: mongo:latest
+      state: started
+      restart_policy: always
+      command: mongod
+      ports:
+        - 27017:27017
+      env: 
+        MONGO_INITDB_ROOT_USERNAME="{{ mongodb_user }}"
+        MONGO_INITDB_ROOT_PASSWORD="{{ mongodb_password }}"

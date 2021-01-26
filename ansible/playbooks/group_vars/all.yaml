@@ -1,0 +1,12 @@
+---
+mongodb_host: 192.168.4.62
+mongodb_user:
+mongodb_password:
+mongodb_database: netdata
+mongodb_collection: netdata_metrics
+mongodb_data_source: average
+mongodb_update_every: 5
+
+remote_user:
+ansible_user:
+ansible_ssh_pass: 

@@ -1,0 +1,429 @@
+---
+- name: Profiling k8s
+  hosts: K8s
+  become: False
+  gather_facts: True
+  vars: 
+    simulation: "2000"
+    platform: "K8s"
+    SIMULATION_WAIT_INTERVAL: "30"
+    SIMULATION_IDLE_INTERVAL: "300"
+  tasks:
+  - name: Ensure K8s is stopped on all nodes
+    shell: yes | sudo kubeadm reset
+    become: True
+    ignore_errors: yes
+
+  - name: Ensure kubelet is stopped
+    systemd:
+      name: kubelet
+      state: stopped
+    ignore_errors: yes
+
+  - name: Waited {{ SIMULATION_WAIT_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_WAIT_INTERVAL }}"
+
+  - name: Simulation is inserted
+    command: python3 ../minion/minion_db_service.py simulation --sim_id {{ simulation }} --platform {{ platform }}
+    register: sim_oid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - set_fact:
+      sim_oid: "{{ sim_oid }}"
+    run_once: true
+    tags: simulation
+
+  - name: Controller host is inserted
+    command: python3 ../minion/minion_db_service.py host --simulation_id {{ sim_oid.stdout_lines[0] }} --hostname "uniba-dsg-linux0" --role "controller"
+    register: host_oid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - set_fact:
+      host_oid: "{{ host_oid }}"
+    run_once: true
+    tags: simulation
+
+  - name: Hosts are inserted
+    command: python3 ../minion/minion_db_service.py host --simulation_id {{ sim_oid.stdout_lines[0] }} --hostname {{ hostname }} --role {{ role }}
+    delegate_to: localhost
+    tags: simulation
+
+  - name: nginx-deployment.yaml is present on remote machine
+    copy:
+      src: templates/nginx-deployment.yaml
+      dest: /home/{{ ansible_user }}/nginx-deployment.yaml
+      force: yes
+    tags: platform
+
+  - name: Ensure correlation id for START_SIMULATION (8) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: start_simulation_correlation_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure correlation id for START_KNS_PLATFORM (20) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: start_kns_platform_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure correlation id for START_KNS_JOIN_NODES (22) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: start_kns_join_nodes_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure correlation id for START_KNS_DEPLOYMENT (24) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: start_kns_deployment_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure correlation id for STOP_KNS_DEPLOYMENT (26) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: stop_kns_deployment_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure correlation id for START_KNS_UNJOIN_NODES (28) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: start_kns_unjoin_nodes_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure correlation id for STOP_KNS_PLATFORM (30) is created
+    command: python3 ../minion/minion_db_service.py uuid
+    register: stop_kns_platform_uuid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Ensure event START_SIMULATION (8) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }} 
+      --correlation_id  {{ start_simulation_correlation_uuid.stdout_lines[0] }}
+      --event_type 8
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  # system is idle
+  - name: Waited {{ SIMULATION_IDLE_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_IDLE_INTERVAL }}"
+
+  - name: Ensure event START_KNS_PLATFORM (20) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }} 
+      --correlation_id  {{ start_kns_platform_uuid.stdout_lines[0] }}
+      --event_type 20
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: K8s is started on master node
+    shell: | 
+      kubeadm init --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=192.168.4.11 --cri-socket=unix:///run/containerd/containerd.sock
+      mkdir -p $HOME/.kube
+      yes | sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+      sudo chown $(id -u):$(id -g) $HOME/.kube/config
+      sudo kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+    become: True
+    ignore_errors: yes
+    when: "inventory_hostname in groups['K8sMasterNodes']"
+    tags: platform
+
+  - name: K8s start is acknowledged
+    command: kubectl get nodes
+    become: True
+    register: k8s_kubectl_get_nodes
+    until: (k8s_kubectl_get_nodes.stdout | regex_findall('NotReady') | length) == 0 and (k8s_kubectl_get_nodes.stdout | regex_findall('Ready') | length) == 1
+    retries: 9999
+    delay: 1
+    delegate_to: K8sMaster
+    run_once: true
+    tags: platform
+
+  - name: Ensure event FINISHED_START_KNS_PLATFORM (21) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }} 
+      --correlation_id  {{ start_kns_platform_uuid.stdout_lines[0] }}
+      --event_type 21
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  # kns nodes idle
+  - name: Waited {{ SIMULATION_IDLE_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_IDLE_INTERVAL }}"
+
+  - name: Ensure event START_KNS_JOIN_NODES (22) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }} 
+      --correlation_id  {{ start_kns_join_nodes_uuid.stdout_lines[0] }}
+      --event_type 22
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+  
+  - name: K8s master is elected
+    command: kubeadm token create --print-join-command
+    register: node_token
+    become: True
+    when: "inventory_hostname in groups['K8sMasterNodes']"
+    tags: platform
+
+  - set_fact:
+      node_token: "{{ node_token.stdout_lines[0] }}"
+    run_once: true
+    when: "inventory_hostname in groups['K8sMasterNodes']"
+    tags: platform
+
+  - name: Worker nodes are joined
+    shell: |
+      {{ node_token }} --cri-socket=unix:///run/containerd/containerd.sock
+    become: True
+    throttle: 1
+    when: "inventory_hostname in groups['K8sWorkerNodes']"
+    tags: platform
+
+  - name: Check nodes for ready states
+    command: kubectl get nodes
+    become: True
+    register: k8s_kubectl_get_nodes
+    until: (k8s_kubectl_get_nodes.stdout | regex_findall('NotReady') | length) == 0 and (k8s_kubectl_get_nodes.stdout | regex_findall('Ready') | length) == 4
+    retries: 9999
+    delay: 1
+    delegate_to: K8sMaster
+    run_once: true
+    tags: platform
+
+  - name: Ensure event FINISHED_KNS_JOIN_NODES (23) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }}
+      --correlation_id  {{ start_kns_join_nodes_uuid.stdout_lines[0] }}
+      --event_type 23
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  # kns cluster idle
+  - name: Wait additional {{ SIMULATION_IDLE_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_IDLE_INTERVAL }}"
+
+  - name: Ensure event START_KNS_DEPLOYMENT (24) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }}
+      --correlation_id  {{ start_kns_deployment_uuid.stdout_lines[0] }}
+      --event_type 24
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Deploy nginx deployment
+    command: kubectl apply -f nginx-deployment.yaml
+    delegate_to: K8sMaster
+    run_once: true
+    become: true
+    tags: platform    
+
+  - name: Wait for completion of deployment
+    command: kubectl get pods
+    become: True
+    register: k8s_kubectl_get_pods
+    until: (k8s_kubectl_get_pods.stdout | regex_findall('Running') | length) == 3
+    retries: 9999
+    delay: 1
+    delegate_to: K8sMaster
+    run_once: true
+    tags: platform
+
+  - name: Ensure event FINISHED_START_KNS_DEPLOYMENT (25) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }}
+      --correlation_id  {{ start_kns_deployment_uuid.stdout_lines[0] }}
+      --event_type 25
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  # kns deployment idle
+  - name: Wait additional {{ SIMULATION_IDLE_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_IDLE_INTERVAL }}"
+
+  - name: Ensure event STOP_KNS_DEPLOYMENT (26) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }}
+      --correlation_id  {{ stop_kns_deployment_uuid.stdout_lines[0] }}
+      --event_type 26
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: nginx-deployment is deleted
+    command: kubectl delete -f nginx-deployment.yaml
+    delegate_to: K8sMaster
+    run_once: true
+    become: true
+    tags: platform
+
+  - name: Wait for completion of deployment removal
+    command: kubectl get pods
+    become: True
+    register: k8s_kubectl_get_pods
+    until: (k8s_kubectl_get_pods.stdout | length) == 0
+    retries: 9999
+    delay: 1
+    delegate_to: K8sMaster
+    run_once: true  
+    tags: platform
+
+  - name: Ensure event FINISHED_STOP_KNS_DEPLOYMENT (27) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }}
+      --correlation_id  {{ stop_kns_deployment_uuid.stdout_lines[0] }}
+      --event_type 27
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Wait additional {{ SIMULATION_WAIT_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_WAIT_INTERVAL }}"
+
+  - name: Ensure event START_KNS_UNJOIN_NODES (28) is inserted
+    command: >
+        python3 ../minion/minion_db_service.py event 
+        --host_id {{ host_oid.stdout_lines[0] }} 
+        --correlation_id  {{ start_kns_unjoin_nodes_uuid.stdout_lines[0] }}
+        --event_type 28
+        --body ""
+    register: stop_kns_deployment_event_oid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Nodes left the cluster
+    shell: | 
+      sudo systemctl stop kubectl
+      yes | sudo kubeadm reset
+    throttle: 1
+    become: True
+    when: "inventory_hostname in groups['K8sWorkerNodes']"
+    ignore_errors: yes
+    tags: platform
+
+  - name: All nodes are removed from the master node
+    shell: | 
+      kubectl drain {{ hostname }} --ignore-daemonsets
+      kubectl delete node {{ hostname }}
+    delegate_to: K8sMaster
+    become: True
+    when: "inventory_hostname in groups['K8sWorkerNodes']"
+    ignore_errors: yes
+    tags: platform
+
+  - name: Wait for completion of node removal
+    command: kubectl get nodes
+    become: True
+    register: k8s_kubectl_get_nodes
+    until: (k8s_kubectl_get_nodes.stdout_lines | length) == 2
+    retries: 9999
+    delay: 1
+    delegate_to: K8sMaster
+    run_once: true
+    tags: platform
+
+  - name: Ensure event FINISHED_KNS_UNJOIN_NODES (29) is inserted
+    command: >
+        python3 ../minion/minion_db_service.py event 
+        --host_id {{ host_oid.stdout_lines[0] }} 
+        --correlation_id  {{ start_kns_unjoin_nodes_uuid.stdout_lines[0] }}
+        --event_type 29
+        --body ""
+    register: stop_kns_deployment_event_oid
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+  
+  - name: Wait additional {{ SIMULATION_WAIT_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_WAIT_INTERVAL }}"
+
+  - name: Ensure event STOP_KNS_PLATFORM (30) is inserted
+    command: >
+        python3 ../minion/minion_db_service.py event 
+        --host_id {{ host_oid.stdout_lines[0] }} 
+        --correlation_id  {{ stop_kns_platform_uuid.stdout_lines[0] }}
+        --event_type 30
+        --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: k8s is stopped
+    shell: | 
+      yes | sudo kubeadm reset
+      sudo systemctl stop kubectl
+    become: True
+    when: "inventory_hostname in groups['K8sMasterNodes']"
+    ignore_errors: yes
+    tags: platform
+
+  - name: Ensure event FINISHED_STOP_KNS_PLATFORM (31) is inserted
+    command: >
+        python3 ../minion/minion_db_service.py event 
+        --host_id {{ host_oid.stdout_lines[0] }} 
+        --correlation_id  {{ stop_kns_platform_uuid.stdout_lines[0] }}
+        --event_type 31
+        --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
+
+  - name: Wait additional {{ SIMULATION_WAIT_INTERVAL }} sec.
+    pause:
+      seconds: "{{ SIMULATION_WAIT_INTERVAL }}"
+
+  - name: Ensure event STOP_SIMULATION (9) is inserted
+    command: >
+      python3 ../minion/minion_db_service.py event 
+      --host_id {{ host_oid.stdout_lines[0] }} 
+      --correlation_id  {{ start_simulation_correlation_uuid.stdout_lines[0] }}
+      --event_type 9
+      --body ""
+    delegate_to: localhost
+    run_once: true
+    tags: simulation
