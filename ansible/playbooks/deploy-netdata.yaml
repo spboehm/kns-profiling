@@ -1,0 +1,69 @@
+---
+- name: Deploy netdata
+  hosts: K8s
+  become: True
+  gather_facts: yes
+  tasks:
+    - name: Check if netdata service is present on system
+      stat: path=/etc/init.d/netdata
+      register: netdata_status
+      tags: local
+    - name: NETDATA is stopped
+      systemd:
+        name: netdata
+        state: stopped
+      when: netdata_status.stat.exists
+      tags: local
+    - name: NETDATA is not installed from apt repository
+      apt:
+        name: netdata
+        state: absent
+        update_cache: no
+        autoremove: yes
+      tags: local
+    - name: libmongoc is installed on system
+      apt:
+        pkg: 
+          - libmongoc-1.0-0
+          - libmongoc-dev
+          - libbson-1.0-0
+        state: present
+        update_cache: yes
+      tags: local
+    - name: NETDATA installer is present on systemd
+      get_url:
+        url: https://my-netdata.io/kickstart.sh
+        dest: "/home/{{ ansible_user }}"
+      tags: local
+    - name: Ensure NETDATA is installed
+      command: "bash /home/{{ ansible_user }}/kickstart.sh --allow-duplicate-install --dont-wait --disable-telemetry --dont-start-it"
+      args:
+        creates: /etc/netdata/netdata.conf
+      tags: local
+    - name: File exporting.conf is templated and present on remote machine
+      template:
+        src: templates/netdata_exporting.conf.j2
+        dest: /etc/netdata/exporting.conf
+      tags: local
+    - name: Optimize NETDATA
+      lineinfile:
+        path: /etc/netdata/netdata.conf
+        regexp: ".*mode = static-threaded"
+        line: "\tmode = none"
+      tags: local
+    - name: NETDATA is started and enabled by systemd
+      systemd:
+        name: netdata
+        state: restarted
+        enabled: True
+      tags: local
+    - name: Sleep for 60 seconds and continue with play
+      wait_for:
+        timeout: 60
+      delegate_to: localhost
+      become: no
+      tags: local
+    - name: NETDATA cloud agent is running
+      command: "netdata-claim.sh -token={{ netdata_token }} -rooms={{ netdata_rooms }} -url={{ netdata_urls }}"
+      args:
+        creates: /var/lib/netdata/cloud.d/claimed_id

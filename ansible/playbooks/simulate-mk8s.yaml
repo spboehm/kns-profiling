@@ -1,0 +1,21 @@
+---
+- name: Profiling mK8s
+  hosts: mK8s
+  become: False
+  gather_facts: True
+  vars: 
+    platform: "mK8s"
+    mK8S_VERSION: 1.20/stable
+    SIMULATION_WAIT_INTERVAL: "30"
+    SIMULATION_IDLE_INTERVAL: "300"
+    SIMULATION_END_INTERVAL: "30"
+  tasks: 
+    - include_tasks: profiling-microk8s.yaml
+      with_sequence: start=5007 end=5027 stride=1
+      loop_control:
+        loop_var: simulation
+      tags: 
+       - simulation
+       - platform
+       - prepare
+       - teardown

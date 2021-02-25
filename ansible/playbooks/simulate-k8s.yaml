@@ -1,0 +1,21 @@
+---
+- name: Profiling K8s
+  hosts: K8s
+  become: False
+  gather_facts: True
+  vars: 
+    platform: "K8s"
+    K8S_VERSION: 1.20/stable
+    SIMULATION_WAIT_INTERVAL: "30"
+    SIMULATION_IDLE_INTERVAL: "300"
+    SIMULATION_END_INTERVAL: "1000"
+  tasks: 
+    - include_tasks: profiling-k8s.yaml
+      with_sequence: start=1011 end=1028 stride=1
+      loop_control:
+        loop_var: simulation
+      tags: 
+       - simulation
+       - platform
+       - prepare
+       - teardown
