@@ -51,7 +51,7 @@ We recommend R as tool for data analysis and provide a pre-configured r script w
 
 ```r
 # r-code/src/db.R
-source("r-code/src/db.R")
+source("db.R")
 
 # example simulation
 simulation <- get.simulation(5000)
@@ -66,7 +66,7 @@ events <- get.events.by.hosts.oid(5000, hosts$"_id"[1])
 metrics <- get.system.metrics(5000, hosts$hostname, events$timestamp[1], events$timestamp[2])
 ```
 
-The results of this r script are described here: tbd
+The results of this r script ([db-example.rmarkdown](r-code/src/db-example.rmarkdown)) are described in detail here: [DB example](docs/db-example.html)
 
 ## Tool Architecture
 

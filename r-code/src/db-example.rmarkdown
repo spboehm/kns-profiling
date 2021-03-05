@@ -1,0 +1,53 @@
+---
+title: "Basic Minion DB Example"
+knit: (function(input_file, encoding) {
+  out_dir <- '../../docs';
+  rmarkdown::render(input_file,
+  encoding=encoding,
+  output_file=file.path(dirname(input_file), out_dir, 'db-example.html'))})
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r, setup, include=FALSE, echo=FALSE}
+knitr::opts_knit$set(warning=FALSE, message=FALSE)
+```
+
+## Simulation data
+
+Establish the database connection and import basic functions for data retrieval contained in `db.R`:
+
+```{r message=FALSE}
+source("db.R")
+```
+
+Obtain a simulation:
+
+```{r}
+# example simulation
+(simulation <- get.simulation(5000))
+```
+Obtain all hosts which are involved in a certain simulation:
+
+```{r}
+# involved hosts
+(hosts <- get.hosts(simulation$"_id"))
+```
+
+Obtain all considered events during a particular simulation:
+
+```{r}
+# events during the simulation
+(events <- get.events.by.hosts.oid(5000, hosts$"_id"[1]))
+```
+
+## System metrics
+
+Get system-related metrics, the data is obtained based on the `sim_id`, a set of `hostname`, and start/end unix-timestamps:
+
+```{r}
+# metrics 
+metrics <- get.system.metrics(5000, hosts$hostname, events$timestamp[1], events$timestamp[2])
+lapply(metrics, head)
+```
+
