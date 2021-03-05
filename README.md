@@ -31,12 +31,42 @@ Furthermore, we can define the number of runs for the simulation:
 
 ```yaml
 - include_tasks: profiling-k3s.yaml
-    with_sequence: start=3060 end=3079 stride=1
+    with_sequence: start=3060 end=3069 stride=1
     loop_control:
     loop_var: simulation
 ```
 
 This will repeat the experiment 10 times.
+The raw data of the experiment can be derived from a publicly available mongodb instance (read-only) with the following credentials:
+
+```bash
+user = guest
+password = guest
+host = h11.pi.uni-bamberg.de
+port = 27017
+ssl = true # only connections via ssh are allowed
+```
+
+We recommend R as tool for data analysis and provide a pre-configured r script which connects to the database and enables basic retrieval functions:
+
+```r
+# r-code/src/db.R
+source("r-code/src/db.R")
+
+# example simulation
+simulation <- get.simulation(5000)
+
+# involved hosts
+hosts <- get.hosts(simulation$"_id")
+
+# events during the simulation
+events <- get.events.by.hosts.oid(5000, hosts$"_id"[1])
+
+# metrics 
+metrics <- get.system.metrics(5000, hosts$hostname, events$timestamp[1], events$timestamp[2])
+```
+
+The results of this r script are described here: tbd
 
 ## Tool Architecture
 

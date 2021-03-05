@@ -1,0 +1,37 @@
+---
+title: "Minion DB Example"
+author: "Sebastian Böhm"
+date: "3/5/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## DB Example
+
+```{r message=FALSE}
+source("r-code/src/db.R")
+```
+
+```{r}
+# example simulation
+(simulation <- get.simulation(5000))
+```
+
+```{r}
+# involved hosts
+(hosts <- get.hosts(simulation$"_id"))
+```
+
+```{r}
+# events during the simulation
+(events <- get.events.by.hosts.oid(5000, hosts$"_id"[1]))
+```
+
+```{r}
+# metrics 
+metrics <- get.system.metrics(5000, hosts$hostname, events$timestamp[1], events$timestamp[2])
+```
+
