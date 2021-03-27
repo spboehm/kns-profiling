@@ -3,7 +3,7 @@ Vagrant.configure(2) do |config|
     m.vm.box = "peru/ubuntu-20.04-server-amd64"
     m.vm.hostname = "uniba-dsg-h62"
     m.vm.network "private_network", ip: "192.168.4.62"
-    m.vm.provider "virtualbox" do |v|
+    m.vm.provider "libvirt" do |v|
         v.cpus = 4
         v.memory = 4096
     end
