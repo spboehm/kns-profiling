@@ -6,7 +6,13 @@ mongodb_database: netdata
 mongodb_collection: netdata_metrics
 mongodb_data_source: average
 mongodb_update_every: 5
-
+ 
 remote_user:
 ansible_user:
 ansible_ssh_pass: 
+
+use_netdata: false
+# Replace in case you want to use netdata cloud
+netdata_token: 
+netdata_rooms:
+netdata_urls:

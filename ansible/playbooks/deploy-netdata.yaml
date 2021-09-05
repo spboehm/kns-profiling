@@ -67,3 +67,4 @@
       command: "netdata-claim.sh -token={{ netdata_token }} -rooms={{ netdata_rooms }} -url={{ netdata_urls }}"
       args:
         creates: /var/lib/netdata/cloud.d/claimed_id
+      when: use_netdata == true
