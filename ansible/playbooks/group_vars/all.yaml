@@ -1,18 +1,18 @@
 ---
 mongodb_host: 192.168.4.62
-mongodb_user:
-mongodb_password:
+mongodb_user: # TODO: add here
+mongodb_password: # TODO: add here 
 mongodb_database: netdata
 mongodb_collection: netdata_metrics
 mongodb_data_source: average
 mongodb_update_every: 5
  
-remote_user:
-ansible_user:
-ansible_ssh_pass: 
+remote_user: # TODO: add here
+ansible_user: # TODO: add here
+ansible_ssh_pass: # TODO: add here
+ansible_ssh_private_key_file: # TODO: add here
 
-use_netdata: false
-# Replace in case you want to use netdata cloud
-netdata_token: 
-netdata_rooms:
-netdata_urls:
+use_netdata: false # TODO: change to true - only if you want to use netdata cloud - optional
+netdata_token: # TODO: add here - optional
+netdata_rooms: # TODO: add here - optional
+netdata_urls: # TODO: add here - optional
